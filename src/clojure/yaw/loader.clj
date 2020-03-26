@@ -6,7 +6,7 @@
 ;-------------- STRUCTURE --------------
 ;---------------------------------------
 (def ^:private model
-{:texture-name ""
+{:texture-name []
  :rbg []
  :vertices {}
  :normals {}
@@ -18,14 +18,11 @@
 ;-------------- FUNCTIONS --------------
 ;---------------------------------------
 (defn- add-to-model
-"Add a value in the model"
-([model key val] ;;For :texture-name, rbg and weight doesn't change
- (case key
-   :texture-name (assoc model key val)
-   :rbg (assoc model key val)
-   :else model))
-([model k1 k2 val]
- (assoc model k1 (assoc (get model k1) k2 val)))) ;;For the maps of vertices, normals, faces and text_coord
+  "Add a value in the model"
+  ([model key val] 
+    (assoc model key (conj (get model key) val)))
+  ([model k1 k2 val]
+   (assoc model k1 (assoc (get model k1) k2 val)))) ;;For the maps of vertices, normals, faces and text_coord
 
 
 ;------------- HANDLE OBJ --------------
@@ -70,11 +67,14 @@
 
 (declare split-line)
 (defn- handle-mtllib
-"Acces to mtllib in order to get rbg"
-[model mtllib]
-(let [lines (with-open [r (io/reader mtllib)] (vec (line-seq r)))
-      color (split-line (first (filter #(re-matches #"Kd.*" %) lines)))]
-  (add-to-model model :rbg (into [] (map (fn [x] (Float/parseFloat x)) (rest color))))))
+  "Acces to mtllib in order to get rbg"
+  [model mtllib]
+  (let [lines (with-open [r (io/reader mtllib)] (vec (line-seq r)))
+        colors (filter #(re-matches #"Kd.*" %) lines)]
+    (loop [l colors, mod model]
+      (if (seq l)
+        (recur (rest l) (add-to-model mod :rbg (into [] (map (fn [x] (Float/parseFloat x)) (rest (split-line (first l)))))))
+        mod))))
 
 ;---------------- UPDATE MODEL -------------------
 
